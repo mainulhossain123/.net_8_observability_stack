@@ -15,6 +15,9 @@ docker-compose up --build
 # Run the end-to-end demo failure scenario
 ./demo-failure.sh          # Linux / macOS / Git Bash
 ./demo-failure.ps1         # Windows PowerShell
+
+# Verify all endpoints are responding correctly
+./ping-all.ps1             # Windows PowerShell — pings every service and reports pass/fail
 ```
 
 **Wait ~2 minutes** for all services to become healthy, then open the UIs below.
@@ -28,14 +31,14 @@ docker-compose up --build
 
 ## Service Access Points
 
-| Service          | URL                               | Credentials         |
-|-----------------|-----------------------------------|---------------------|
-| ApiService       | http://localhost:8080             | —                   |
-| Swagger UI       | http://localhost:8080/swagger     | —                   |
-| Health Check UI  | http://localhost:8080/health-ui   | —                   |
-| Metrics endpoint | http://localhost:8080/metrics     | —                   |
-| OrderService     | http://localhost:8081             | —                   |
-| InventoryService | http://localhost:8082             | —                   |
+| Service          | URL                               | Credentials         | Notes                          |
+|-----------------|-----------------------------------|---------------------|--------------------------------|
+| ApiService       | http://localhost:8080             | —                   | Redirects to Swagger UI        |
+| Swagger UI       | http://localhost:8080/swagger     | —                   |                                |
+| Health Check UI  | http://localhost:8080/health-ui   | —                   |                                |
+| Metrics endpoint | http://localhost:8080/metrics     | —                   |                                |
+| OrderService     | http://localhost:8081             | —                   | Internal — called by ApiService |
+| InventoryService | http://localhost:8082             | —                   | Internal — called by ApiService |
 | Seq (Logs)       | http://localhost:8888             | No auth (dev)       |
 | Jaeger (Traces)  | http://localhost:16686            | No auth (dev)       |
 | Prometheus       | http://localhost:9090             | No auth (dev)       |
@@ -84,7 +87,8 @@ observability-poc/
 ├── docker-compose.m3.yml          # Milestone 3 — + metrics/alerting
 ├── docker-compose.m4.yml          # Milestone 4 — + health checks + dependencies
 ├── demo-failure.sh                # End-to-end demo (bash)
-└── demo-failure.ps1               # End-to-end demo (PowerShell)
+├── demo-failure.ps1               # End-to-end demo (PowerShell)
+└── ping-all.ps1                   # Health-check script — pings all 21 endpoints and reports pass/fail
 ```
 
 ---
@@ -367,7 +371,7 @@ spec:
 
 ### Milestone 5 — Full Integration
 ```
-[ ] docker-compose up --build → all 12 services start
+[ ] docker-compose up --build → all 11 services start
 [ ] ./demo-failure.sh runs without errors
 [ ] Seq: correlated logs across all 3 services for same CorrelationId
 [ ] Jaeger: full trace ApiService → OrderService → InventoryService

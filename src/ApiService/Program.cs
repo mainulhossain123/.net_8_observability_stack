@@ -168,7 +168,12 @@ try
         };
     });
 
+    app.UseStaticFiles();
     app.UseAuthorization();
+
+    // Redirect root to Swagger UI for convenience
+    app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
+
     app.MapControllers();
 
     // Prometheus scraping endpoint
@@ -194,6 +199,8 @@ try
     {
         options.UIPath  = "/health-ui";
         options.ApiPath = "/health-ui-api";
+        var cssPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot", "healthchecks-ui.css");
+        options.AddCustomStylesheet(cssPath);
     });
 
     Log.Information("ApiService started successfully");

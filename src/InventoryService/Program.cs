@@ -76,6 +76,7 @@ try
     app.UseMiddleware<CorrelationIdMiddleware>();
     app.UseSerilogRequestLogging();
     app.UseAuthorization();
+    app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
     app.MapControllers();
     app.MapPrometheusScrapingEndpoint();
     app.MapHealthChecks("/health");
