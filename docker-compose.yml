@@ -1,4 +1,3 @@
-version: "3.9"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MILESTONE 5 — Full Observability Stack
@@ -120,6 +119,7 @@ services:
       - "5341:5341"   # Ingestion
     environment:
       - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
     volumes:
       - seq-data:/data
     networks:

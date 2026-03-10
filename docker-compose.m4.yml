@@ -1,4 +1,3 @@
-version: "3.9"
 
 # ── Milestone 4: Health Checks (adds Redis + SQL Server for real checks) ─────
 # Start: docker-compose -f docker-compose.m4.yml up --build
@@ -80,6 +79,7 @@ services:
       - "5341:5341"
     environment:
       - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
     volumes:
       - seq-data:/data
     networks:

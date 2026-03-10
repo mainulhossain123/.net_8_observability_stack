@@ -68,6 +68,8 @@ try
         .WithMetrics(metrics => metrics
             .SetResourceBuilder(ResourceBuilder.CreateDefault()
                 .AddService(serviceName, serviceVersion: serviceVersion))
+            .AddMeter("ApiService.Metrics")
+            .AddMeter("ApiService.HealthMetrics")
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
             .AddRuntimeInstrumentation()
@@ -84,11 +86,16 @@ try
     var orderSvcUrl     = builder.Configuration["Services:OrderService"] ?? "http://order-service:8081";
     var inventorySvcUrl = builder.Configuration["Services:InventoryService"] ?? "http://inventory-service:8082";
 
+    // Use master DB for the health check — ObservabilityDb may not exist yet
+    var sqlHealthConnStr = sqlConnStr
+        .Replace("Database=ObservabilityDb;", "Database=master;")
+        .Replace("Database=ObservabilityDb",  "Database=master");
+
     builder.Services
         .AddHealthChecks()
         .AddCheck<DatabaseMigrationHealthCheck>("database_migrations",
             tags: new[] { "db", "ready" })
-        .AddSqlServer(sqlConnStr,
+        .AddSqlServer(sqlHealthConnStr,
             name: "sql_server",
             tags: new[] { "db", "ready" })
         .AddRedis(redisConn,
@@ -104,7 +111,7 @@ try
             tags: new[] { "external", "ready" })
         .AddProcessAllocatedMemoryHealthCheck(512, "memory_512mb",
             tags: new[] { "system" })
-        .AddDiskStorageHealthCheck(setup => setup.AddDrive("C:\\", 1024),
+        .AddDiskStorageHealthCheck(setup => setup.AddDrive("/", 1024),
             name: "disk_storage",
             tags: new[] { "system" });
 
@@ -113,7 +120,7 @@ try
         {
             setup.SetEvaluationTimeInSeconds(15);
             setup.MaximumHistoryEntriesPerEndpoint(50);
-            setup.AddHealthCheckEndpoint("ApiService", "/health");
+            setup.AddHealthCheckEndpoint("ApiService", "http://localhost:8080/health");
         })
         .AddInMemoryStorage();
 

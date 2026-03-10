@@ -47,7 +47,7 @@ echo ""
 # ─── Step 1: Baseline traffic ─────────────────────────────────────────────────
 echo -e "${BOLD}[Step 1] Generating baseline traffic (100 requests)...${RESET}"
 for i in $(seq 1 50); do
-  curl -sf "$API/weatherforecast" > /dev/null
+  curl -sf "$API/Weather" > /dev/null
   curl -sf "$API/orders" > /dev/null
 done
 echo -e "${GREEN}  ✓ 100 requests sent${RESET}"

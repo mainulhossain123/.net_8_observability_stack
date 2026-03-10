@@ -46,8 +46,8 @@ public class ExternalApiHealthCheck : IHealthCheck
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            _logger.LogError(ex, "Payment gateway health check failed");
-            return HealthCheckResult.Unhealthy("Payment gateway unreachable", ex);
+            _logger.LogWarning(ex, "Payment gateway health check failed — marking Degraded");
+            return HealthCheckResult.Degraded("Payment gateway unreachable", ex);
         }
     }
 }

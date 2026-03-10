@@ -19,6 +19,11 @@ docker-compose up --build
 
 **Wait ~2 minutes** for all services to become healthy, then open the UIs below.
 
+> **Note on `payment_gateway` health check:** The external stub (`httpstat.us`) is not
+> reachable from inside Docker by default. This check intentionally reports `Degraded`
+> (not `Unhealthy`) so it does not block the stack. Override the endpoint via the
+> `ExternalApis__PaymentGateway` environment variable to point at an accessible URL.
+
 ---
 
 ## Service Access Points
@@ -102,7 +107,7 @@ docker-compose -f docker-compose.m1.yml up --build
 
 **Validate:**
 ```bash
-curl http://localhost:8080/weatherforecast
+curl http://localhost:8080/Weather
 # Open Seq at http://localhost:8888
 # Search: CorrelationId = "<value from X-Correlation-ID response header>"
 # Filter: @Level = 'Error'
@@ -174,7 +179,7 @@ curl http://localhost:8080/metrics  # Prometheus text format
 # Grafana: http://localhost:3000 (admin/observability) → dashboard loads
 
 # Generate load:
-for i in {1..200}; do curl -s http://localhost:8080/weatherforecast > /dev/null; done
+for i in {1..200}; do curl -s http://localhost:8080/Weather > /dev/null; done
 # Trigger errors:
 for i in {1..30}; do curl -s http://localhost:8080/simulate/error > /dev/null; done
 # AlertManager: http://localhost:9093 → HighErrorRate firing
@@ -323,7 +328,7 @@ spec:
 ### Milestone 1 — Logging
 ```
 [ ] docker-compose -f docker-compose.m1.yml up --build  → services green
-[ ] curl http://localhost:8080/weatherforecast           → 200 OK
+[ ] curl http://localhost:8080/Weather           → 200 OK
 [ ] Seq http://localhost:8888                           → logs arriving
 [ ] Search CorrelationId in Seq                         → single request trace
 [ ] Filter @Level='Error' in Seq                        → only errors shown

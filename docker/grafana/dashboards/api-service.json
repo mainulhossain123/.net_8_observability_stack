@@ -87,13 +87,13 @@
     },
     {
       "id": 4,
-      "title": "Active HTTP Connections",
+      "title": "Active HTTP Requests",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "targets": [
         {
-          "expr": "kestrel_active_connections{job=\"api-service\"}",
-          "legendFormat": "Active Connections",
+          "expr": "http_server_active_requests{job=\"api-service\"}",
+          "legendFormat": "Active Requests",
           "refId": "A"
         }
       ],
@@ -108,17 +108,17 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [
         {
-          "expr": "rate(dotnet_gc_collections_count_total{job=\"api-service\",generation=\"gen0\"}[5m])",
+          "expr": "rate(dotnet_gc_collections_total{job=\"api-service\",gc_heap_generation=\"gen0\"}[5m])",
           "legendFormat": "Gen 0",
           "refId": "A"
         },
         {
-          "expr": "rate(dotnet_gc_collections_count_total{job=\"api-service\",generation=\"gen1\"}[5m])",
+          "expr": "rate(dotnet_gc_collections_total{job=\"api-service\",gc_heap_generation=\"gen1\"}[5m])",
           "legendFormat": "Gen 1",
           "refId": "B"
         },
         {
-          "expr": "rate(dotnet_gc_collections_count_total{job=\"api-service\",generation=\"gen2\"}[5m])",
+          "expr": "rate(dotnet_gc_collections_total{job=\"api-service\",gc_heap_generation=\"gen2\"}[5m])",
           "legendFormat": "Gen 2",
           "refId": "C"
         }
@@ -134,7 +134,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "targets": [
         {
-          "expr": "dotnet_gc_heap_size_bytes{job=\"api-service\"} / 1024 / 1024",
+          "expr": "dotnet_gc_last_collection_heap_size_bytes{job=\"api-service\"} / 1024 / 1024",
           "legendFormat": "Heap MB",
           "refId": "A"
         }
@@ -150,7 +150,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
       "targets": [
         {
-          "expr": "dotnet_thread_pool_queue_length{job=\"api-service\"}",
+          "expr": "dotnet_thread_pool_queue_length_total{job=\"api-service\"}",
           "legendFormat": "Queue Depth",
           "refId": "A"
         }

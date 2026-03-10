@@ -30,7 +30,7 @@ try {
 Write-Host ""
 Write-Host "[Step 1] Generating baseline traffic (100 requests)..." -ForegroundColor White
 for ($i = 0; $i -lt 50; $i++) {
-    try { Invoke-RestMethod "$Api/weatherforecast" -TimeoutSec 5 | Out-Null } catch {}
+    try { Invoke-RestMethod "$Api/Weather" -TimeoutSec 5 | Out-Null } catch {}
     try { Invoke-RestMethod "$Api/orders" -TimeoutSec 5 | Out-Null } catch {}
 }
 Write-Host "  ✓ 100 requests sent" -ForegroundColor Green

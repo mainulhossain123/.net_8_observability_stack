@@ -1,4 +1,3 @@
-version: "3.9"
 
 # ── Milestone 3: Metrics & Alerting (Prometheus + Grafana + AlertManager) ───
 # Start: docker-compose -f docker-compose.m3.yml up --build
@@ -71,6 +70,7 @@ services:
       - "5341:5341"
     environment:
       - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
     volumes:
       - seq-data:/data
     networks:
