@@ -1,8 +1,8 @@
 # .NET Observability POC
 
-A production-grade, fully containerised observability stack demonstrating the **four pillars of observability** using .NET 9 Web APIs.
+A production-grade, fully containerised observability stack demonstrating the **four pillars of observability** using .NET 8 Web APIs.
 
-> **Note:** Built on .NET 9 (SDK available at time of creation). All patterns, packages, and APIs are identical to the .NET 8 targets described in the requirement — you can swap `net9.0` → `net8.0` in the `.csproj` files and use the `mcr.microsoft.com/dotnet/sdk:8.0` Docker image if you have the .NET 8 SDK installed.
+> **Note:** Built on .NET 8 (`net8.0`). All patterns, packages, and APIs are identical to .NET 9 — you can swap `net8.0` → `net9.0` in the `.csproj` files and use `mcr.microsoft.com/dotnet/sdk:9.0` in the Dockerfiles if you prefer the latest SDK.
 
 ---
 
