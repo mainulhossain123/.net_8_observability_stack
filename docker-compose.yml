@@ -1,0 +1,292 @@
+version: "3.9"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MILESTONE 5 — Full Observability Stack
+# All 3 .NET services + Seq + Jaeger + Prometheus + AlertManager + Grafana
+#              + SQL Server + Redis + RabbitMQ
+#
+# Start:    docker-compose up --build
+# Stop:     docker-compose down
+# Reset:    docker-compose down -v  (removes all volumes)
+# Demo:     ./demo-failure.sh   (requires Git Bash / WSL on Windows)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── Shared defaults applied to all .NET services ──────────────────────────────
+x-dotnet-defaults: &dotnet-defaults
+  restart: unless-stopped
+  networks:
+    - obs-net
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # .NET Services
+  # ──────────────────────────────────────────────────────────────────────────
+
+  api:
+    <<: *dotnet-defaults
+    build:
+      context: ./src/ApiService
+      dockerfile: Dockerfile
+    container_name: api
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - Seq__ServerUrl=http://seq:5341
+      - Jaeger__OtlpEndpoint=http://jaeger:4317
+      - Services__OrderService=http://order-service:8081
+      - Services__InventoryService=http://inventory-service:8082
+      - ConnectionStrings__SqlServer=Server=sqlserver;Database=ObservabilityDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True
+      - Redis__ConnectionString=redis:6379
+    depends_on:
+      seq:
+        condition: service_started
+      jaeger:
+        condition: service_started
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      order-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  order-service:
+    <<: *dotnet-defaults
+    build:
+      context: ./src/OrderService
+      dockerfile: Dockerfile
+    container_name: order-service
+    ports:
+      - "8081:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8081
+      - Seq__ServerUrl=http://seq:5341
+      - Jaeger__OtlpEndpoint=http://jaeger:4317
+    depends_on:
+      - seq
+      - jaeger
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  inventory-service:
+    <<: *dotnet-defaults
+    build:
+      context: ./src/InventoryService
+      dockerfile: Dockerfile
+    container_name: inventory-service
+    ports:
+      - "8082:8082"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8082
+      - Seq__ServerUrl=http://seq:5341
+      - Jaeger__OtlpEndpoint=http://jaeger:4317
+    depends_on:
+      - seq
+      - jaeger
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8082/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Logging — Seq
+  # ──────────────────────────────────────────────────────────────────────────
+
+  seq:
+    image: datalust/seq:latest
+    container_name: seq
+    ports:
+      - "8888:80"     # UI
+      - "5341:5341"   # Ingestion
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+      - seq-data:/data
+    networks:
+      - obs-net
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Tracing — Jaeger
+  # ──────────────────────────────────────────────────────────────────────────
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    volumes:
+      - jaeger-data:/badger
+    networks:
+      - obs-net
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Metrics — Prometheus
+  # ──────────────────────────────────────────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - obs-net
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./docker/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - obs-net
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Dashboards — Grafana (pre-provisioned, no manual setup)
+  # ──────────────────────────────────────────────────────────────────────────
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=observability
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/api-service.json
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - obs-net
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Data — SQL Server 2022
+  # ──────────────────────────────────────────────────────────────────────────
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong!Passw0rd
+      - MSSQL_PID=Developer
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    networks:
+      - obs-net
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost",
+             "-U", "sa", "-P", "YourStrong!Passw0rd", "-Q", "SELECT 1",
+             "-No", "-C"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Cache — Redis
+  # ──────────────────────────────────────────────────────────────────────────
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - obs-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Message Queue — RabbitMQ
+  # ──────────────────────────────────────────────────────────────────────────
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI  (guest / guest)
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - obs-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+# ──────────────────────────────────────────────────────────────────────────────
+volumes:
+  seq-data:
+  jaeger-data:
+  prometheus-data:
+  grafana-data:
+  sqlserver-data:
+  redis-data:
+  rabbitmq-data:
+
+networks:
+  obs-net:
+    driver: bridge

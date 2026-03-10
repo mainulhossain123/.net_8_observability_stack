@@ -1,0 +1,54 @@
+version: "3.9"
+
+# ── Milestone 1: Structured Logging (Serilog → Seq) ─────────────────────────
+# Start: docker-compose -f docker-compose.m1.yml up --build
+# Seq UI: http://localhost:8888
+# API:    http://localhost:8080/weatherforecast
+
+services:
+
+  # ─── .NET API ────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./src/ApiService
+      dockerfile: Dockerfile
+    container_name: api
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - Seq__ServerUrl=http://seq:5341
+    depends_on:
+      seq:
+        condition: service_healthy
+    networks:
+      - obs-net
+    restart: unless-stopped
+
+  # ─── Seq (structured log aggregation) ──────────────────────────────────
+  seq:
+    image: datalust/seq:latest
+    container_name: seq
+    ports:
+      - "8888:80"    # UI
+      - "5341:5341"  # Ingestion
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+      - seq-data:/data
+    networks:
+      - obs-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  seq-data:
+
+networks:
+  obs-net:
+    driver: bridge

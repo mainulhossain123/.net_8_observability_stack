@@ -1,0 +1,26 @@
+## Build output
+bin/
+obj/
+publish/
+
+## .NET
+*.user
+*.suo
+.vs/
+*.rsuser
+
+## Docker
+.env
+*.env.local
+
+## Logs
+*.log
+logs/
+
+## OS
+.DS_Store
+Thumbs.db
+
+## IDE
+.idea/
+*.swp

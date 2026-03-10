@@ -1,0 +1,103 @@
+groups:
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # HTTP / Error Rate Alerts
+  # ────────────────────────────────────────────────────────────────────────────
+  - name: http-alerts
+    rules:
+
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_server_request_duration_seconds_count{
+              job="api-service",
+              http_response_status_code=~"5.."
+            }[5m])) /
+            sum(rate(http_server_request_duration_seconds_count{
+              job="api-service"
+            }[5m]))
+          ) * 100 > 5
+        for: 2m
+        labels:
+          severity: critical
+          service:  api-service
+        annotations:
+          summary:     "High HTTP error rate on {{ $labels.job }}"
+          description: "Error rate is {{ $value | printf \"%.1f\" }}% (threshold: 5%)."
+          runbook:     "Check /simulate/error traffic, application logs in Seq."
+
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by(le)(
+              rate(http_server_request_duration_seconds_bucket{job="api-service"}[5m])
+            )
+          ) * 1000 > 2000
+        for: 3m
+        labels:
+          severity: warning
+          service:  api-service
+        annotations:
+          summary:     "High P95 latency on {{ $labels.job }}"
+          description: "P95 latency is {{ $value | printf \"%.0f\" }}ms (threshold: 2000ms)."
+          runbook:     "Check /simulate/slow traffic, Jaeger for slow spans."
+
+      - alert: ServiceDown
+        expr: up{job=~"api-service|order-service|inventory-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary:     "Service {{ $labels.job }} is down"
+          description: "Prometheus cannot scrape {{ $labels.job }} on {{ $labels.instance }}."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # .NET Runtime Alerts
+  # ────────────────────────────────────────────────────────────────────────────
+  - name: dotnet-runtime-alerts
+    rules:
+
+      - alert: HighGCPressure
+        expr: |
+          rate(dotnet_gc_collections_count_total{generation="2"}[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary:     "High Gen2 GC rate on {{ $labels.job }}"
+          description: "Gen2 GC rate is {{ $value | printf \"%.2f\" }}/s — possible memory pressure."
+
+      - alert: HighHeapUsage
+        expr: |
+          dotnet_gc_heap_size_bytes / 1024 / 1024 > 400
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary:     "High heap usage on {{ $labels.job }}"
+          description: "Heap is {{ $value | printf \"%.0f\" }}MB (threshold: 400MB)."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Health Check Alerts
+  # ────────────────────────────────────────────────────────────────────────────
+  - name: health-check-alerts
+    rules:
+
+      - alert: DependencyDegraded
+        expr: health_check_status{job="api-service"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary:     "Dependency degraded: {{ $labels.check_name }}"
+          description: "Health check '{{ $labels.check_name }}' has been Degraded for 5 minutes."
+
+      - alert: DependencyUnhealthy
+        expr: health_check_status{job="api-service"} == -1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary:     "Dependency UNHEALTHY: {{ $labels.check_name }}"
+          description: "Health check '{{ $labels.check_name }}' is Unhealthy. Immediate attention required."
+          runbook:     "Check http://localhost:8080/health-ui for details."

@@ -1,0 +1,216 @@
+{
+  "id": null,
+  "uid": "observability-poc-main",
+  "title": "Observability POC — ApiService",
+  "tags": ["dotnet", "observability", "poc"],
+  "timezone": "browser",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (RPS)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"api-service\"}[1m]))",
+          "legendFormat": "Requests/s",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2 }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Error Rate (%)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(http_server_request_duration_seconds_count{job=\"api-service\",http_response_status_code=~\"5..\"}[5m])) / sum(rate(http_server_request_duration_seconds_count{job=\"api-service\"}[5m]))",
+          "legendFormat": "Error Rate %",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "custom": { "lineWidth": 2 }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Latency Percentiles (ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by(le)(rate(http_server_request_duration_seconds_bucket{job=\"api-service\"}[5m]))) * 1000",
+          "legendFormat": "P50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le)(rate(http_server_request_duration_seconds_bucket{job=\"api-service\"}[5m]))) * 1000",
+          "legendFormat": "P95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by(le)(rate(http_server_request_duration_seconds_bucket{job=\"api-service\"}[5m]))) * 1000",
+          "legendFormat": "P99",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "lineWidth": 2 }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Active HTTP Connections",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "kestrel_active_connections{job=\"api-service\"}",
+          "legendFormat": "Active Connections",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      }
+    },
+    {
+      "id": 5,
+      "title": "GC Collections by Generation",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "rate(dotnet_gc_collections_count_total{job=\"api-service\",generation=\"gen0\"}[5m])",
+          "legendFormat": "Gen 0",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(dotnet_gc_collections_count_total{job=\"api-service\",generation=\"gen1\"}[5m])",
+          "legendFormat": "Gen 1",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(dotnet_gc_collections_count_total{job=\"api-service\",generation=\"gen2\"}[5m])",
+          "legendFormat": "Gen 2",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops" }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Heap Size (MB)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "dotnet_gc_heap_size_bytes{job=\"api-service\"} / 1024 / 1024",
+          "legendFormat": "Heap MB",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "decmbytes" }
+      }
+    },
+    {
+      "id": 7,
+      "title": "ThreadPool Queue Length",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "dotnet_thread_pool_queue_length{job=\"api-service\"}",
+          "legendFormat": "Queue Depth",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Dependency Health Status",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "expr": "health_check_status{job=\"api-service\"}",
+          "legendFormat": "{{check_name}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [
+            { "type": "value", "options": { "-1": { "text": "Unhealthy", "color": "red" } } },
+            { "type": "value", "options": { "0":  { "text": "Degraded",  "color": "yellow" } } },
+            { "type": "value", "options": { "1":  { "text": "Healthy",   "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",    "value": null },
+              { "color": "yellow", "value": 0 },
+              { "color": "green",  "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" }
+    },
+    {
+      "id": 9,
+      "title": "Orders Created vs Failed",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 },
+      "targets": [
+        {
+          "expr": "rate(orders_created_total{job=\"api-service\"}[1m])",
+          "legendFormat": "Orders/s Created",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(orders_failed_total{job=\"api-service\"}[1m])",
+          "legendFormat": "Orders/s Failed",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops" }
+      }
+    }
+  ]
+}

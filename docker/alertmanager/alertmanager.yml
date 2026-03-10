@@ -1,0 +1,50 @@
+global:
+  smtp_smarthost: 'mailhog:1025'
+  smtp_from:      'alertmanager@observability-poc.local'
+  smtp_require_tls: false
+  resolve_timeout: 5m
+
+# Don't send repeated notifications within this window
+route:
+  group_by:         ['alertname', 'job', 'severity']
+  group_wait:       30s
+  group_interval:   5m
+  repeat_interval:  1h
+  receiver:         'default'
+
+  routes:
+    - matchers:
+        - severity="critical"
+      receiver: 'critical-alerts'
+      continue: true
+
+    - matchers:
+        - severity="warning"
+      receiver: 'default'
+
+receivers:
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook'
+        send_resolved: true
+
+  - name: 'critical-alerts'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook'
+        send_resolved: true
+    # Uncomment and configure for real email/Slack:
+    # slack_configs:
+    #   - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+    #     channel: '#alerts'
+    #     title: '{{ .GroupLabels.alertname }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+    # email_configs:
+    #   - to: 'ops@yourteam.com'
+    #     subject: '[CRITICAL] {{ .GroupLabels.alertname }}'
+
+inhibit_rules:
+  - source_matchers:
+      - severity="critical"
+    target_matchers:
+      - severity="warning"
+    equal: ['alertname', 'job']

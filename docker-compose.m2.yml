@@ -1,0 +1,101 @@
+version: "3.9"
+
+# ── Milestone 2: Distributed Tracing (OpenTelemetry → Jaeger) ───────────────
+# Start: docker-compose -f docker-compose.m2.yml up --build
+# Jaeger UI: http://localhost:16686
+# API:       http://localhost:8080/orders
+
+services:
+
+  api:
+    build:
+      context: ./src/ApiService
+      dockerfile: Dockerfile
+    container_name: api
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - Seq__ServerUrl=http://seq:5341
+      - Jaeger__OtlpEndpoint=http://jaeger:4317
+      - Services__OrderService=http://order-service:8081
+      - Services__InventoryService=http://inventory-service:8082
+    depends_on:
+      - seq
+      - jaeger
+      - order-service
+      - inventory-service
+    networks:
+      - obs-net
+    restart: unless-stopped
+
+  order-service:
+    build:
+      context: ./src/OrderService
+      dockerfile: Dockerfile
+    container_name: order-service
+    ports:
+      - "8081:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8081
+      - Seq__ServerUrl=http://seq:5341
+      - Jaeger__OtlpEndpoint=http://jaeger:4317
+    depends_on:
+      - seq
+      - jaeger
+    networks:
+      - obs-net
+    restart: unless-stopped
+
+  inventory-service:
+    build:
+      context: ./src/InventoryService
+      dockerfile: Dockerfile
+    container_name: inventory-service
+    ports:
+      - "8082:8082"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8082
+      - Seq__ServerUrl=http://seq:5341
+      - Jaeger__OtlpEndpoint=http://jaeger:4317
+    depends_on:
+      - seq
+      - jaeger
+    networks:
+      - obs-net
+    restart: unless-stopped
+
+  seq:
+    image: datalust/seq:latest
+    container_name: seq
+    ports:
+      - "8888:80"
+      - "5341:5341"
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+      - seq-data:/data
+    networks:
+      - obs-net
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    networks:
+      - obs-net
+    restart: unless-stopped
+
+volumes:
+  seq-data:
+
+networks:
+  obs-net:
+    driver: bridge
